@@ -85,6 +85,13 @@ def parse_var_name(var_name: str) -> tuple:
 
 
 def parse_var_to_list(var, path=None, var_list=None):
+    """
+    Формирует список переменных в формате сценария
+
+    :param var:переменные в структуре вложенного словаря
+    :param path:пусть до значения переменной в структуре переменной var
+    :param var_list:начальный список переменных в формате сценария
+    """
     if path is None: path = []
     if var_list is None: var_list = []
     if type(var) is dict:
@@ -134,7 +141,7 @@ class Context:
 
 if __name__ == "__main__":
     try:
-        print(create_var_name(['we','0']))
+        print(create_var_name(['we', '0']))
     except VariableStructureNameError as e:
         print(e)
 
