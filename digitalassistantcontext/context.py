@@ -1,6 +1,9 @@
 import json
 import re
 
+SCENARIO_VAR_LIST_TYPE = 1
+DICT_VAR_LIST_TYPE = 2
+
 
 class VariableNameError(Exception):
     """Вызывается, когда имя не соответствует ограничениям на имя переменной контекста"""
@@ -14,8 +17,8 @@ class VariableStructureNameError(Exception):
 
 def assign_value_to_variable(initial: dict, var_key: str, var_value: str = None, is_assign: bool = False):
     """
-    Присвоение значения элементу исходного словаря. При is_assign=False элементу словаря присваивается значение
-    пустого словаря, если этот элемент отсутствует в словаре.
+    Присвоение значения элементу исходного словаря или дополнение структуры пустым словарем. При is_assign=False
+    элементу словаря присваивается значение пустого словаря, если этот элемент отсутствует в словаре.
 
     Parameters:
         initial (dict):исходный словарь
@@ -24,7 +27,7 @@ def assign_value_to_variable(initial: dict, var_key: str, var_value: str = None,
         is_assign (boolean):присваивать значение
 
     Returns:
-        str:значение переменной
+        dict|str:строка или пустой словарь
     """
     if type(initial) is not dict:
         initial = dict()
@@ -84,40 +87,57 @@ def parse_var_name(var_name: str) -> tuple:
         raise VariableNameError
 
 
-def parse_var_to_list(var, path=None, var_list=None):
+def parse_var_to_list(var, path=None, var_list=None, list_type=SCENARIO_VAR_LIST_TYPE):
     """
     Формирует список переменных в формате сценария
 
     :param var:переменные в структуре вложенного словаря
     :param path:пусть до значения переменной в структуре переменной var
     :param var_list:начальный список переменных в формате сценария
+    :param list_type:тип возвращаемого списка - в формате сценария или в формате словаря
     """
     if path is None: path = []
-    if var_list is None: var_list = []
+    if var_list is None:
+        if list_type == DICT_VAR_LIST_TYPE:
+            var_list = dict()
+        else:
+            var_list = []
     if type(var) is dict:
         for k in var:
             copied_path = path.copy()
             copied_path.append(k)
-            var_list = parse_var_to_list(var[k], copied_path, var_list)
+            var_list = parse_var_to_list(var[k], copied_path, var_list, list_type)
     else:
-        var_list.append({
-            "name": create_var_name(path),
-            "value": var
-        })
+        if list_type == DICT_VAR_LIST_TYPE:
+            try:
+                var_list[create_var_name(path)] = var
+            except VariableStructureNameError:
+                pass
+        else:
+            var_list.append({
+                "name": create_var_name(path),
+                "value": var
+            })
     return var_list
 
 
 class Context:
     variables: dict
 
-    def __init__(self, variables=None, ctx: "Context" = None):
-        self.parent = ctx
+    def __init__(self, variables=None, parent_ctx: "Context" = None):
+        self.parent = parent_ctx
         if type(variables) is dict:
             self.variables = variables
         else:
             self.variables = dict()
 
     def set(self, var_name, var_value) -> None:
+        """
+        Присваивает значение переменной
+
+        :param var_name:имя переменной в формате сценария
+        :param var_value:значение переменной
+        """
         main, add = parse_var_name(var_name)
         len_add = len(add)
 
@@ -136,22 +156,47 @@ class Context:
             var = self.variables[main]
             for n in add:
                 var = var.get(n)
+        if self.parent is not None:
+            var = self.parent.get(var_name)
         return var
 
 
 if __name__ == "__main__":
-    try:
-        print(create_var_name(['we', '0']))
-    except VariableStructureNameError as e:
-        print(e)
+    pass
+    # try:
+    #     print(create_var_name(['we', '0']))
+    # except VariableStructureNameError as e:
+    #     print(e)
+    #
 
-    # with open('./context.json', encoding='utf-8') as f:
-    #     context = Context(json.load(f))
-    #     vars_list = parse_var_to_list(context.variables)
-    #     with open('./variable.json', 'w', encoding='utf-8') as outfile:
-    #         json.dump(vars_list, outfile, ensure_ascii=False, indent=4)
-    #         context_reload = Context()
-    #         for v in vars_list:
-    #             context_reload.set(v.get("name"), v.get("value"))
-    #         with open('./context_reload.json', 'w', encoding='utf-8') as file:
-    #             json.dump(context_reload.variables, file, ensure_ascii=False, indent=4)
+    # try:
+    #     with open('./parent_context.json', encoding='utf-8') as f:
+    #         parent_context = Context(json.load(f))
+    # except FileNotFoundError as e:
+    #     print(e)
+
+    # try:
+    #     with open('./context.json', encoding='utf-8') as f:
+    #         context = Context(json.load(f), parent_ctx=parent_context)
+    # except FileNotFoundError as e:
+    #     print(e)
+
+    # v = context.get('Услуги[1]')
+    # print(v)
+
+    # print(context.variables)
+    # print(context.parent.variables)
+
+    # try:
+        # vars_list = parse_var_to_list(context.variables, list_type=DICT_VAR_LIST_TYPE)
+        # with open('./variable.json', 'w', encoding='utf-8') as outfile:
+        #     json.dump(vars_list, outfile, ensure_ascii=False, indent=4)
+
+        # context_reload = Context()
+        # for v in vars_list:
+        #     context_reload.set(v.get("name"), v.get("value"))
+        # with open('./context_reload.json', 'w', encoding='utf-8') as file:
+        #     json.dump(context_reload.variables, file, ensure_ascii=False, indent=4)
+    # except NameError as e:
+    #     print(e)
+
