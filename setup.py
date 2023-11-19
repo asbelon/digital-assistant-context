@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.2'
+VERSION = '0.0.3'
 DESCRIPTION = 'Managing context as a set of variables for executing a digital assistant script'
 LONG_DESCRIPTION = 'Managing context as a set of variables for executing a digital assistant script'
 
